@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoJob - Candidate Results</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/styles.css') }}">
+    <!-- Flatpickr for date/time picking -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+</head>
+<body class="bg-slate-100">
+    <div class="container mx-auto px-4 py-8">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-blue-800 mb-2">AutoJob</h1>
+            <p class="text-xl text-gray-600">Candidate Ranking Results</p>
+        </header>
+
+        <div class="bg-white shadow-lg rounded-lg p-6 mb-8">
+            <div class="flex justify-between items-center mb-6 border-b pb-4">
+                <h2 class="text-2xl font-semibold text-gray-800">Results Overview</h2>
+                <a href="/" class="text-blue-600 hover:text-blue-800 font-medium">← New Analysis</a>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div class="bg-blue-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-medium text-gray-800 mb-2">Session Information</h3>
+                    <p class="text-sm text-gray-600 mb-1">Session ID: <span class="font-mono">{{ results.session_id }}</span></p>
+                    <p class="text-sm text-gray-600">Total Candidates: <span class="font-semibold">{{ results.count }}</span></p>
+                </div>
+                
+                <div class="bg-green-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-medium text-gray-800 mb-2">Shortlisted Candidates</h3>
+                    {% set shortlisted = 0 %}
+                    {% for candidate in results.results %}
+                        {% if candidate.shortlisted %}
+                            {% set shortlisted = shortlisted + 1 %}
+                        {% endif %}
+                    {% endfor %}
+                    <p class="text-sm text-gray-600">Count: <span class="font-semibold">{{ shortlisted }}</span></p>
+                    <p class="text-sm text-gray-600">Percentage: <span class="font-semibold">{{ (shortlisted / results.count * 100) | round(1) }}%</span></p>
+                </div>
+            </div>
+            
+            <!-- Tab Navigation for Job Roles -->
+            <div class="mb-6 border-b">
+                <ul id="roleTabs" class="flex flex-wrap -mb-px">
+                    <li class="mr-2">
+                        <a href="#" class="role-tab inline-block p-4 border-b-2 border-transparent rounded-t-lg hover:text-gray-600 hover:border-gray-300 active" 
+                           data-role="all">All Roles</a>
+                    </li>
+                    {% for role in results.job_roles %}
+                    <li class="mr-2">
+                        <a href="#" class="role-tab inline-block p-4 border-b-2 border-transparent rounded-t-lg hover:text-gray-600 hover:border-gray-300" 
+                           data-role="{{ role }}">{{ role }}</a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            
+            <!-- Filtering and Sorting Controls -->
+            <div class="flex flex-wrap gap-4 mb-6">
+                <div>
+                    <label for="filterType" class="block text-sm font-medium text-gray-700 mb-1">Filter</label>
+                    <select id="filterType" class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option value="all">All Candidates</option>
+                        <option value="shortlisted">Shortlisted Only</option>
+                        <option value="not-shortlisted">Not Shortlisted</option>
+                        <option value="interview-scheduled">Interview Scheduled</option>
+                        <option value="no-interview">No Interview Scheduled</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="sortBy" class="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
+                    <select id="sortBy" class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option value="score-desc">Score (High to Low)</option>
+                        <option value="score-asc">Score (Low to High)</option>
+                        <option value="name-asc">Name (A to Z)</option>
+                        <option value="name-desc">Name (Z to A)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Candidate Results Cards -->
+            <div id="candidatesContainer" class="space-y-6">
+                {% for candidate in results.results|sort(attribute='score', reverse=true) %}
+                <div class="candidate-card border rounded-lg overflow-hidden hover:shadow-md transition-shadow" 
+                     data-score="{{ candidate.score }}" 
+                     data-name="{{ candidate.candidate_id }}"
+                     data-shortlisted="{{ candidate.shortlisted|lower }}"
+                     data-role="{{ candidate.job_role }}"
+                     data-interview="{{ candidate.interview_scheduled|lower }}">
+                    
+                    <div class="flex flex-wrap md:flex-nowrap items-center border-b bg-gray-50 px-4 py-3">
+                        <div class="w-full md:w-auto md:flex-1">
+                            <h3 class="text-lg font-semibold text-gray-800">{{ candidate.candidate_id }}</h3>
+                            <p class="text-sm text-gray-600">Role: {{ candidate.job_role }}</p>
+                        </div>
+                        <div class="w-full md:w-auto flex items-center justify-between md:justify-end space-x-3 mt-2 md:mt-0">
+                            <div class="text-2xl font-bold mr-2 {% if candidate.score >= 80 %}text-green-600{% elif candidate.score >= 60 %}text-yellow-600{% else %}text-red-600{% endif %}">
+                                {{ candidate.score }}
+                            </div>
+                            <div class="px-3 py-1 rounded-full text-sm font-medium {% if candidate.shortlisted %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {% if candidate.shortlisted %}Shortlisted{% else %}Not Shortlisted{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="p-4 grid md:grid-cols-3 gap-4">
+                        <div class="md:col-span-2">
+                            <h4 class="text-sm font-medium text-gray-700 mb-2">Analysis</h4>
+                            <p class="text-gray-600 text-sm">{{ candidate.analysis }}</p>
+                            
+                            {% if candidate.email %}
+                            <p class="mt-2 text-sm">
+                                <span class="font-medium text-gray-700">Email:</span> 
+                                <span class="text-gray-600">{{ candidate.email }}</span>
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="border-l pl-4">
+                            {% if candidate.interview_scheduled %}
+                                <div class="bg-blue-50 p-3 rounded-md">
+                                    <h4 class="text-sm font-medium text-blue-800 mb-1">Interview Scheduled</h4>
+                                    <p class="text-sm text-blue-600">{{ candidate.interview_datetime }}</p>
+                                </div>
+                            {% else %}
+                                <div>
+                                    <h4 class="text-sm font-medium text-gray-700 mb-2">Schedule Interview</h4>
+                                    <form class="schedule-interview-form" data-candidate="{{ candidate.candidate_id }}" data-email="{{ candidate.email }}">
+                                        <input type="hidden" name="session_id" value="{{ results.session_id }}">
+                                        <input type="hidden" name="candidate_id" value="{{ candidate.candidate_id }}">
+                                        <input type="hidden" name="job_role" value="{{ candidate.job_role }}">
+                                        <input type="hidden" name="candidate_email" value="{{ candidate.email }}">
+                                        <input type="hidden" name="candidate_name" value="{{ candidate.candidate_id }}">
+                                        
+                                        <div class="mb-2">
+                                            <label class="block text-xs text-gray-600 mb-1">Interview Date</label>
+                                            <input type="text" name="interview_date" class="datepicker w-full text-sm rounded-md" placeholder="Select date">
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label class="block text-xs text-gray-600 mb-1">Interview Time</label>
+                                            <input type="text" name="interview_time" class="timepicker w-full text-sm rounded-md" placeholder="Select time">
+                                        </div>
+                                        
+                                        <button type="submit" class="w-full py-1 px-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded transition duration-200">
+                                            Schedule & Notify
+                                        </button>
+                                    </form>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- No Results Message -->
+            <div id="noResultsMessage" class="hidden py-8 text-center">
+                <p class="text-gray-500 text-lg">No candidates match the current filters.</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Success Modal -->
+    <div id="successModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full">
+            <div class="text-center mb-4">
+                <svg class="h-12 w-12 text-green-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                <h3 class="text-lg font-medium text-gray-900 mt-2">Interview Scheduled!</h3>
+                <p class="text-sm text-gray-500 mt-1" id="modalMessage">The candidate has been notified via email.</p>
+            </div>
+            <div class="text-center">
+                <button id="closeModalBtn" class="py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize date and time pickers
+        document.addEventListener('DOMContentLoaded', function() {
+            flatpickr(".datepicker", {
+                minDate: "today",
+                dateFormat: "Y-m-d"
+            });
+            
+            flatpickr(".timepicker", {
+                enableTime: true,
+                noCalendar: true,
+                dateFormat: "H:i",
+                time_24hr: true
+            });
+            
+            // Setup interview form submission
+            document.querySelectorAll('.schedule-interview-form').forEach(form => {
+                form.addEventListener('submit', scheduleInterview);
+            });
+            
+            // Setup job role tabs
+            document.querySelectorAll('.role-tab').forEach(tab => {
+                tab.addEventListener('click', switchRoleTab);
+            });
+            
+            // Setup filter and sort
+            document.getElementById('filterType').addEventListener('change', applyFiltersAndSort);
+            document.getElementById('sortBy').addEventListener('change', applyFiltersAndSort);
+            
+            // Close modal button
+            document.getElementById('closeModalBtn').addEventListener('click', function() {
+                document.getElementById('successModal').classList.add('hidden');
+            });
+            
+            // Initial application of filters and sort
+            applyFiltersAndSort();
+        });
+        
+        // Schedule interview submission
+        async function scheduleInterview(e) {
+            e.preventDefault();
+            
+            const form = e.target;
+            const formData = new FormData(form);
+            
+            // Validate inputs
+            const date = formData.get('interview_date');
+            const time = formData.get('interview_time');
+            
+            if (!date || !time) {
+                alert('Please select both date and time for the interview');
+                return;
+            }
+            
+            try {
+                const sessionId = formData.get('session_id');
+                const response = await fetch(`/schedule-interview/${sessionId}`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    // Show success modal
+                    const modal = document.getElementById('successModal');
+                    const modalMessage = document.getElementById('modalMessage');
+                    
+                    if (data.email_sent) {
+                        modalMessage.textContent = 'The candidate has been notified via email.';
+                    } else {
+                        modalMessage.textContent = 'Interview scheduled, but email notification failed.';
+                    }
+                    
+                    modal.classList.remove('hidden');
+                    
+                    // Update UI to show interview scheduled
+                    const candidateCard = form.closest('.candidate-card');
+                    const scheduleSection = form.parentElement;
+                    
+                    scheduleSection.innerHTML = `
+                        <div class="bg-blue-50 p-3 rounded-md">
+                            <h4 class="text-sm font-medium text-blue-800 mb-1">Interview Scheduled</h4>
+                            <p class="text-sm text-blue-600">${date} ${time}</p>
+                        </div>
+                    `;
+                    
+                    // Update data attributes
+                    candidateCard.dataset.interview = 'true';
+                    
+                    // Reapply filters
+                    applyFiltersAndSort();
+                } else {
+                    alert(`Error: ${data.error || 'Failed to schedule interview'}`);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while scheduling the interview');
+            }
+        }
+        
+        // Switch job role tab
+        function switchRoleTab(e) {
+            e.preventDefault();
+            
+            // Update active tab styling
+            document.querySelectorAll('.role-tab').forEach(tab => {
+                tab.classList.remove('border-blue-500', 'text-blue-600', 'active');
+                tab.classList.add('border-transparent');
+            });
+            
+            this.classList.add('border-blue-500', 'text-blue-600', 'active');
+            this.classList.remove('border-transparent');
+            
+            // Apply filters with the selected role
+            applyFiltersAndSort();
+        }
+        
+        // Filtering and sorting logic
+        function applyFiltersAndSort() {
+            const filterType = document.getElementById('filterType').value;
+            const sortBy = document.getElementById('sortBy').value;
+            const activeRoleTab = document.querySelector('.role-tab.active');
+            const selectedRole = activeRoleTab ? activeRoleTab.dataset.role : 'all';
+            
+            const cards = document.querySelectorAll('.candidate-card');
+            let visibleCount = 0;
+            
+            // Hide cards based on filter
+            cards.forEach(card => {
+                const isShortlisted = card.dataset.shortlisted === 'true';
+                const hasInterview = card.dataset.interview === 'true';
+                const cardRole = card.dataset.role;
+                
+                let showByFilter = 
+                    (filterType === 'all') || 
+                    (filterType === 'shortlisted' && isShortlisted) || 
+                    (filterType === 'not-shortlisted' && !isShortlisted) ||
+                    (filterType === 'interview-scheduled' && hasInterview) ||
+                    (filterType === 'no-interview' && !hasInterview);
+                
+                let showByRole = (selectedRole === 'all' || cardRole === selectedRole);
+                
+                if (showByFilter && showByRole) {
+                    card.classList.remove('hidden');
+                    visibleCount++;
+                } else {
+                    card.classList.add('hidden');
+                }
+            });
+            
+            // Show/hide no results message
+            const noResultsMessage = document.getElementById('noResultsMessage');
+            if (visibleCount === 0) {
+                noResultsMessage.classList.remove('hidden');
+            } else {
+                noResultsMessage.classList.add('hidden');
+            }
+            
+            // Sort cards
+            const container = document.getElementById('candidatesContainer');
+            const cardsArray = Array.from(cards);
+            
+            cardsArray.sort((a, b) => {
+                if (sortBy === 'score-desc') {
+                    return parseFloat(b.dataset.score) - parseFloat(a.dataset.score);
+                } else if (sortBy === 'score-asc') {
+                    return parseFloat(a.dataset.score) - parseFloat(b.dataset.score);
+                } else if (sortBy === 'name-asc') {
+                    return a.dataset.name.localeCompare(b.dataset.name);
+                } else if (sortBy === 'name-desc') {
+                    return b.dataset.name.localeCompare(a.dataset.name);
+                }
+            });
+            
+            // Reorder DOM
+            cardsArray.forEach(card => {
+                container.appendChild(card);
+            });
+        }
+    </script>
+</body>
+</html>
